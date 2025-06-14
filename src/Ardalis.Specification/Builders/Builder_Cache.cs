@@ -3,15 +3,15 @@
 public static partial class SpecificationBuilderExtensions
 {
     /// <summary>
-    /// Set's the cache key for the specification.
+    /// Sets the cache key for the specification.
     /// </summary>
     /// <typeparam name="T">The type of the entity.</typeparam>
     /// <typeparam name="TResult">The type of the result.</typeparam>
     /// <param name="builder">The specification builder.</param>
-    /// <param name="specificationName">Used as prefix for the cache key</param>
+    /// <param name="specificationName">Used as prefix for the cache key.</param>
     /// <param name="args">To be appended to the cache key, separated by dash.</param>
-    /// <returns>The updated ordered specification builder.</returns>
-    /// <exception cref="ArgumentException">If specificationName is null or empty.</exception>
+    /// <returns>A cache specification builder, useful for applying further caching functionalities.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="specificationName"/> is null or empty.</exception>
     public static ICacheSpecificationBuilder<T, TResult> EnableCache<T, TResult>(
         this ISpecificationBuilder<T, TResult> builder,
         string specificationName,
@@ -22,16 +22,16 @@ public static partial class SpecificationBuilderExtensions
     }
 
     /// <summary>
-    /// Set's the cache key for the specification.
+    /// Sets the cache key for the specification.
     /// </summary>
     /// <typeparam name="T">The type of the entity.</typeparam>
     /// <typeparam name="TResult">The type of the result.</typeparam>
     /// <param name="builder">The specification builder.</param>
-    /// <param name="specificationName">Used as prefix for the cache key</param>
+    /// <param name="specificationName">Used as prefix for the cache key.</param>
     /// <param name="condition">The condition to evaluate.</param>
     /// <param name="args">To be appended to the cache key, separated by dash.</param>
-    /// <returns>The updated ordered specification builder.</returns>
-    /// <exception cref="ArgumentException">If specificationName is null or empty.</exception>
+    /// <returns>A cache specification builder, useful for applying further caching functionalities.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="specificationName"/> is null or empty and <paramref name="condition"/> is true.</exception>
     public static ICacheSpecificationBuilder<T, TResult> EnableCache<T, TResult>(
         this ISpecificationBuilder<T, TResult> builder,
         string specificationName,
@@ -43,14 +43,14 @@ public static partial class SpecificationBuilderExtensions
     }
 
     /// <summary>
-    /// Set's the cache key for the specification.
+    /// Sets the cache key for the specification.
     /// </summary>
     /// <typeparam name="T">The type of the entity.</typeparam>
     /// <param name="builder">The specification builder.</param>
-    /// <param name="specificationName">Used as prefix for the cache key</param>
+    /// <param name="specificationName">Used as prefix for the cache key.</param>
     /// <param name="args">To be appended to the cache key, separated by dash.</param>
-    /// <returns>The updated ordered specification builder.</returns>
-    /// <exception cref="ArgumentException">If specificationName is null or empty.</exception>
+    /// <returns>A cache specification builder, useful for applying further caching functionalities.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="specificationName"/> is null or empty.</exception>
     public static ICacheSpecificationBuilder<T> EnableCache<T>(
         this ISpecificationBuilder<T> builder,
         string specificationName,
@@ -58,15 +58,15 @@ public static partial class SpecificationBuilderExtensions
         => EnableCache(builder, specificationName, true, args);
 
     /// <summary>
-    /// Set's the cache key for the specification.
+    /// Sets the cache key for the specification.
     /// </summary>
     /// <typeparam name="T">The type of the entity.</typeparam>
     /// <param name="builder">The specification builder.</param>
-    /// <param name="specificationName">Used as prefix for the cache key</param>
+    /// <param name="specificationName">Used as prefix for the cache key.</param>
     /// <param name="condition">The condition to evaluate.</param>
     /// <param name="args">To be appended to the cache key, separated by dash.</param>
-    /// <returns>The updated ordered specification builder.</returns>
-    /// <exception cref="ArgumentException">If specificationName is null or empty.</exception>
+    /// <returns>A cache specification builder, useful for applying further caching functionalities.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="specificationName"/> is null or empty and <paramref name="condition"/> is true.</exception>
     public static ICacheSpecificationBuilder<T> EnableCache<T>(
         this ISpecificationBuilder<T> builder,
         string specificationName,
@@ -77,7 +77,7 @@ public static partial class SpecificationBuilderExtensions
         {
             if (string.IsNullOrEmpty(specificationName))
             {
-                throw new ArgumentException($"Required input {specificationName} was null or empty.", specificationName);
+                throw new ArgumentException("Required input was null or empty.", nameof(specificationName));
             }
 
             builder.Specification.CacheKey = $"{specificationName}-{string.Join("-", args)}";
@@ -94,8 +94,8 @@ public static partial class SpecificationBuilderExtensions
     /// <typeparam name="TResult">The type of the result.</typeparam>
     /// <param name="builder">The specification builder.</param>
     /// <param name="cacheKey">The cache key to be used.</param>
-    /// <returns>The updated ordered specification builder.</returns>
-    /// <exception cref="ArgumentException">If specificationName is null or empty.</exception>
+    /// <returns>A cache specification builder, useful for applying further caching functionalities.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="cacheKey"/> is null or empty.</exception>
     public static ICacheSpecificationBuilder<T, TResult> WithCacheKey<T, TResult>(
         this ISpecificationBuilder<T, TResult> builder,
         string cacheKey) where T : class
@@ -112,8 +112,8 @@ public static partial class SpecificationBuilderExtensions
     /// <param name="builder">The specification builder.</param>
     /// <param name="cacheKey">The cache key to be used.</param>
     /// <param name="condition">The condition to evaluate.</param>
-    /// <returns>The updated ordered specification builder.</returns>
-    /// <exception cref="ArgumentException">If specificationName is null or empty.</exception>
+    /// <returns>A cache specification builder, useful for applying further caching functionalities.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="cacheKey"/> is null or empty and <paramref name="condition"/> is true.</exception>
     public static ICacheSpecificationBuilder<T, TResult> WithCacheKey<T, TResult>(
         this ISpecificationBuilder<T, TResult> builder,
         string cacheKey,
@@ -129,8 +129,8 @@ public static partial class SpecificationBuilderExtensions
     /// <typeparam name="T">The type of the entity.</typeparam>
     /// <param name="builder">The specification builder.</param>
     /// <param name="cacheKey">The cache key to be used.</param>
-    /// <returns>The updated ordered specification builder.</returns>
-    /// <exception cref="ArgumentException">If specificationName is null or empty.</exception>
+    /// <returns>A cache specification builder, useful for applying further caching functionalities.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="cacheKey"/> is null or empty.</exception>
     public static ICacheSpecificationBuilder<T> WithCacheKey<T>(
         this ISpecificationBuilder<T> builder,
         string cacheKey) where T : class
@@ -143,8 +143,8 @@ public static partial class SpecificationBuilderExtensions
     /// <param name="builder">The specification builder.</param>
     /// <param name="cacheKey">The cache key to be used.</param>
     /// <param name="condition">The condition to evaluate.</param>
-    /// <returns>The updated ordered specification builder.</returns>
-    /// <exception cref="ArgumentException">If specificationName is null or empty.</exception>
+    /// <returns>A cache specification builder, useful for applying further caching functionalities.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="cacheKey"/> is null or empty and <paramref name="condition"/> is true.</exception>
     public static ICacheSpecificationBuilder<T> WithCacheKey<T>(
         this ISpecificationBuilder<T> builder,
         string cacheKey,
@@ -152,6 +152,11 @@ public static partial class SpecificationBuilderExtensions
     {
         if (condition)
         {
+            if (string.IsNullOrEmpty(cacheKey))
+            {
+                throw new ArgumentException("Required input was null or empty.", nameof(cacheKey));
+            }
+
             builder.Specification.CacheKey = cacheKey;
         }
 

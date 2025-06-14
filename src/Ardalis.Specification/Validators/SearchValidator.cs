@@ -7,16 +7,33 @@ public class SearchValidator : IValidator
 
     public bool IsValid<T>(T entity, ISpecification<T> specification)
     {
-        if (specification.SearchCriterias is List<SearchExpressionInfo<T>> { Count: > 0 } list)
+        if (specification is Specification<T> spec)
         {
+            if (spec.OneOrManySearchExpressions.IsEmpty) return true;
+
+            if (spec.OneOrManySearchExpressions.SingleOrDefault is { } searchExpression)
+            {
+                return searchExpression.SelectorFunc(entity)?.Like(searchExpression.SearchTerm) ?? false;
+            }
+
             // The search expressions are already sorted by SearchGroup.
-            return IsValid<T>(entity, list);
+            return IsValid(entity, spec.OneOrManySearchExpressions.List);
+        }
+
+        // We'll never reach this point for our specifications.
+        // This is just to cover the case where users have custom ISpecification<T> implementation but use our validator.
+        // We'll fall back to LINQ for this case.
+
+        foreach (var searchGroup in specification.SearchCriterias.GroupBy(x => x.SearchGroup))
+        {
+            if (!searchGroup.Any(c => c.SelectorFunc(entity)?.Like(c.SearchTerm) ?? false))
+                return false;
         }
 
         return true;
     }
 
-    // This would be simpler using Span<SearchExpressionInfo<TSource>>
+    // This would be simpler using Span<SearchExpressionInfo<T>>
     // but CollectionsMarshal.AsSpan is not available in .NET Standard 2.0
     private static bool IsValid<T>(T entity, List<SearchExpressionInfo<T>> list)
     {

@@ -26,11 +26,7 @@ public class Specification<T, TResult> : Specification<T>, ISpecification<T, TRe
 /// <inheritdoc cref="ISpecification{T}"/>
 public class Specification<T> : ISpecification<T>
 {
-    private const int DEFAULT_CAPACITY_WHERE = 2;
     private const int DEFAULT_CAPACITY_SEARCH = 2;
-    private const int DEFAULT_CAPACITY_ORDER = 2;
-    private const int DEFAULT_CAPACITY_INCLUDE = 2;
-    private const int DEFAULT_CAPACITY_INCLUDESTRING = 1;
 
     // It is utilized only during the building stage for the sub-chains. Once the state is built, we don't care about it anymore.
     // The initial value is not important since the value is always initialized by the root of the chain.
@@ -42,11 +38,11 @@ public class Specification<T> : ISpecification<T>
 
     // The state is null initially, but we're spending 8 bytes per reference (on x64).
     // This will be reconsidered for version 10 where we may store the whole state as a single array of structs.
-    private List<WhereExpressionInfo<T>>? _whereExpressions;
-    private List<SearchExpressionInfo<T>>? _searchExpressions;
-    private List<OrderExpressionInfo<T>>? _orderExpressions;
-    private List<IncludeExpressionInfo>? _includeExpressions;
-    private List<string>? _includeStrings;
+    private OneOrMany<WhereExpressionInfo<T>> _whereExpressions = new();
+    private OneOrMany<SearchExpressionInfo<T>> _searchExpressions = new();
+    private OneOrMany<OrderExpressionInfo<T>> _orderExpressions = new();
+    private OneOrMany<IncludeExpressionInfo> _includeExpressions = new();
+    private OneOrMany<string> _includeStrings = new();
     private Dictionary<string, object>? _items;
     private OneOrMany<string> _queryTags = new();
 
@@ -94,54 +90,39 @@ public class Specification<T> : ISpecification<T>
 
 
     // Specs are not intended to be thread-safe, so we don't need to worry about thread-safety here.
-    internal void Add(WhereExpressionInfo<T> whereExpression) => (_whereExpressions ??= new(DEFAULT_CAPACITY_WHERE)).Add(whereExpression);
-    internal void Add(OrderExpressionInfo<T> orderExpression) => (_orderExpressions ??= new(DEFAULT_CAPACITY_ORDER)).Add(orderExpression);
-    internal void Add(IncludeExpressionInfo includeExpression) => (_includeExpressions ??= new(DEFAULT_CAPACITY_INCLUDE)).Add(includeExpression);
-    internal void Add(string includeString) => (_includeStrings ??= new(DEFAULT_CAPACITY_INCLUDESTRING)).Add(includeString);
-    internal void Add(SearchExpressionInfo<T> searchExpression)
-    {
-        if (_searchExpressions is null)
-        {
-            _searchExpressions = new(DEFAULT_CAPACITY_SEARCH) { searchExpression };
-            return;
-        }
-
-        // We'll keep the search expressions sorted by the search group.
-        // We could keep the state as SortedList instead of List, but it has additional 56 bytes overhead and it's not worth it for our use-case.
-        // Having multiple search groups is not a common scenario, and usually there may be just few search expressions.
-        var index = _searchExpressions.FindIndex(x => x.SearchGroup > searchExpression.SearchGroup);
-        if (index == -1)
-        {
-            _searchExpressions.Add(searchExpression);
-        }
-        else
-        {
-            _searchExpressions.Insert(index, searchExpression);
-        }
-    }
+    internal void Add(WhereExpressionInfo<T> whereExpression) => _whereExpressions.Add(whereExpression);
+    internal void Add(OrderExpressionInfo<T> orderExpression) => _orderExpressions.Add(orderExpression);
+    internal void Add(IncludeExpressionInfo includeExpression) => _includeExpressions.Add(includeExpression);
+    internal void Add(string includeString) => _includeStrings.Add(includeString);
+    internal void Add(SearchExpressionInfo<T> searchExpression) => _searchExpressions.AddSorted(searchExpression, SearchExpressionComparer<T>.Default);
     internal void AddQueryTag(string queryTag) => _queryTags.Add(queryTag);
 
     /// <inheritdoc/>
     public Dictionary<string, object> Items => _items ??= [];
 
     /// <inheritdoc/>
-    public IEnumerable<WhereExpressionInfo<T>> WhereExpressions => _whereExpressions ?? Enumerable.Empty<WhereExpressionInfo<T>>();
+    public IEnumerable<WhereExpressionInfo<T>> WhereExpressions => _whereExpressions.Values;
 
     /// <inheritdoc/>
-    public IEnumerable<SearchExpressionInfo<T>> SearchCriterias => _searchExpressions ?? Enumerable.Empty<SearchExpressionInfo<T>>();
+    public IEnumerable<SearchExpressionInfo<T>> SearchCriterias => _searchExpressions.Values;
 
     /// <inheritdoc/>
-    public IEnumerable<OrderExpressionInfo<T>> OrderExpressions => _orderExpressions ?? Enumerable.Empty<OrderExpressionInfo<T>>();
+    public IEnumerable<OrderExpressionInfo<T>> OrderExpressions => _orderExpressions.Values;
 
     /// <inheritdoc/>
-    public IEnumerable<IncludeExpressionInfo> IncludeExpressions => _includeExpressions ?? Enumerable.Empty<IncludeExpressionInfo>();
+    public IEnumerable<IncludeExpressionInfo> IncludeExpressions => _includeExpressions.Values;
 
     /// <inheritdoc/>
-    public IEnumerable<string> IncludeStrings => _includeStrings ?? Enumerable.Empty<string>();
+    public IEnumerable<string> IncludeStrings => _includeStrings.Values;
 
     /// <inheritdoc/>
     public IEnumerable<string> QueryTags => _queryTags.Values;
 
+    internal OneOrMany<WhereExpressionInfo<T>> OneOrManyWhereExpressions => _whereExpressions;
+    internal OneOrMany<SearchExpressionInfo<T>> OneOrManySearchExpressions => _searchExpressions;
+    internal OneOrMany<OrderExpressionInfo<T>> OneOrManyOrderExpressions => _orderExpressions;
+    internal OneOrMany<IncludeExpressionInfo> OneOrManyIncludeExpressions => _includeExpressions;
+    internal OneOrMany<string> OneOrManyIncludeStrings => _includeStrings;
     internal OneOrMany<string> OneOrManyQueryTags => _queryTags;
 
     /// <inheritdoc/>
@@ -158,55 +139,41 @@ public class Specification<T> : ISpecification<T>
         return validator.IsValid(entity, this);
     }
 
-    void ISpecification<T>.CopyTo(Specification<T> otherSpec)
+    internal Specification<T> Clone()
     {
-        otherSpec.PostProcessingAction = PostProcessingAction;
-        otherSpec.CacheKey = CacheKey;
-        otherSpec.Take = Take;
-        otherSpec.Skip = Skip;
-        otherSpec.IgnoreQueryFilters = IgnoreQueryFilters;
-        otherSpec.IgnoreAutoIncludes = IgnoreAutoIncludes;
-        otherSpec.AsSplitQuery = AsSplitQuery;
-        otherSpec.AsNoTracking = AsNoTracking;
-        otherSpec.AsTracking = AsTracking;
-        otherSpec.AsNoTrackingWithIdentityResolution = AsNoTrackingWithIdentityResolution;
+        var newSpec = new Specification<T>();
+        CopyState(this, newSpec);
+        return newSpec;
+    }
 
-        // The expression containers are immutable, having the same instance is fine.
-        // We'll just create new collections.
+    internal Specification<T, TResult> Clone<TResult>()
+    {
+        var newSpec = new Specification<T, TResult>();
+        CopyState(this, newSpec);
+        return newSpec;
+    }
 
-        if (_whereExpressions is not null)
+    private static void CopyState(Specification<T> source, Specification<T> target)
+    {
+        target.PostProcessingAction = source.PostProcessingAction;
+        target.CacheKey = source.CacheKey;
+        target.Take = source.Take;
+        target.Skip = source.Skip;
+        target.IgnoreAutoIncludes = source.IgnoreAutoIncludes;
+        target.IgnoreQueryFilters = source.IgnoreQueryFilters;
+        target.AsSplitQuery = source.AsSplitQuery;
+        target.AsNoTracking = source.AsNoTracking;
+        target.AsTracking = source.AsTracking;
+        target.AsNoTrackingWithIdentityResolution = source.AsNoTrackingWithIdentityResolution;
+        target._whereExpressions = source._whereExpressions.Clone();
+        target._searchExpressions = source._searchExpressions.Clone();
+        target._orderExpressions = source._orderExpressions.Clone();
+        target._includeExpressions = source._includeExpressions.Clone();
+        target._includeStrings = source._includeStrings.Clone();
+        target._queryTags = source._queryTags.Clone();
+        if (source._items is not null)
         {
-            otherSpec._whereExpressions = _whereExpressions.ToList();
-        }
-
-        if (_includeExpressions is not null)
-        {
-            otherSpec._includeExpressions = _includeExpressions.ToList();
-        }
-
-        if (_includeStrings is not null)
-        {
-            otherSpec._includeStrings = _includeStrings.ToList();
-        }
-
-        if (_orderExpressions is not null)
-        {
-            otherSpec._orderExpressions = _orderExpressions.ToList();
-        }
-
-        if (_searchExpressions is not null)
-        {
-            otherSpec._searchExpressions = _searchExpressions.ToList();
-        }
-
-        if (!_queryTags.IsEmpty)
-        {
-            otherSpec._queryTags = _queryTags.Clone();
-        }
-
-        if (_items is not null)
-        {
-            otherSpec._items = new Dictionary<string, object>(_items);
+            target._items = new Dictionary<string, object>(source._items);
         }
     }
 }

@@ -2,20 +2,98 @@
 
 namespace Ardalis.Specification;
 
+/// <summary>
+/// Represents an in-memory evaluator for search expressions.
+/// </summary>
 public class SearchMemoryEvaluator : IInMemoryEvaluator
 {
-    private SearchMemoryEvaluator() { }
+    /// <summary>
+    /// Gets the singleton instance of the <see cref="SearchMemoryEvaluator"/> class.
+    /// </summary>
     public static SearchMemoryEvaluator Instance { get; } = new SearchMemoryEvaluator();
+    private SearchMemoryEvaluator() { }
 
+    /// <inheritdoc/>
     public IEnumerable<T> Evaluate<T>(IEnumerable<T> query, ISpecification<T> specification)
     {
-        if (specification.SearchCriterias is List<SearchExpressionInfo<T>> { Count: > 0 } list)
+        if (specification is Specification<T> spec)
         {
+            if (spec.OneOrManySearchExpressions.IsEmpty) return query;
+
+            if (spec.OneOrManySearchExpressions.SingleOrDefault is { } searchExpression)
+            {
+                return new SpecSingleLikeIterator<T>(query, searchExpression);
+            }
+
             // The search expressions are already sorted by SearchGroup.
-            return new SpecLikeIterator<T>(query, list);
+            return new SpecLikeIterator<T>(query, spec.OneOrManySearchExpressions.List);
+        }
+
+        // We'll never reach this point for our specifications.
+        // This is just to cover the case where users have custom ISpecification<T> implementation but use our evaluator.
+        // We'll fall back to LINQ for this case.
+
+        foreach (var searchGroup in specification.SearchCriterias.GroupBy(x => x.SearchGroup))
+        {
+            query = query.Where(x => searchGroup.Any(c => c.SelectorFunc(x)?.Like(c.SearchTerm) ?? false));
         }
 
         return query;
+    }
+
+    private sealed class SpecSingleLikeIterator<TSource> : Iterator<TSource>
+    {
+        private readonly IEnumerable<TSource> _source;
+        private readonly SearchExpressionInfo<TSource> _searchExpression;
+
+        private IEnumerator<TSource>? _enumerator;
+
+        public SpecSingleLikeIterator(IEnumerable<TSource> source, SearchExpressionInfo<TSource> searchExpression)
+        {
+            _source = source;
+            _searchExpression = searchExpression;
+        }
+
+        public override Iterator<TSource> Clone()
+            => new SpecSingleLikeIterator<TSource>(_source, _searchExpression);
+
+        public override void Dispose()
+        {
+            if (_enumerator is not null)
+            {
+                _enumerator.Dispose();
+                _enumerator = null;
+            }
+            base.Dispose();
+        }
+
+        public override bool MoveNext()
+        {
+            switch (_state)
+            {
+                case 1:
+                    _enumerator = _source.GetEnumerator();
+                    _state = 2;
+                    goto case 2;
+                case 2:
+                    Debug.Assert(_enumerator is not null);
+                    var searchExpression = _searchExpression;
+                    while (_enumerator!.MoveNext())
+                    {
+                        TSource sourceItem = _enumerator.Current;
+                        if (searchExpression.SelectorFunc(sourceItem)?.Like(searchExpression.SearchTerm) ?? false)
+                        {
+                            _current = sourceItem;
+                            return true;
+                        }
+                    }
+
+                    Dispose();
+                    break;
+            }
+
+            return false;
+        }
     }
 
     private sealed class SpecLikeIterator<TSource> : Iterator<TSource>

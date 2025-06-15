@@ -7,7 +7,7 @@ namespace Tests.Fixture;
 public class TestFactory : IAsyncLifetime
 {
     // Flag to force using Docker SQL Server. Update it manually if you want to avoid localDb locally.
-    private const bool _forceDocker = false;
+    private const bool FORCE_DOCKER = false;
 
     private string _connectionString = default!;
     private Respawner _respawner = default!;
@@ -21,7 +21,7 @@ public class TestFactory : IAsyncLifetime
     {
         using (var localDB = new SqlLocalDbApi())
         {
-            if (_forceDocker || !localDB.IsLocalDBInstalled())
+            if (FORCE_DOCKER || !localDB.IsLocalDBInstalled())
             {
                 _dbContainer = CreateContainer();
                 await _dbContainer.StartAsync();
@@ -29,7 +29,7 @@ public class TestFactory : IAsyncLifetime
             }
             else
             {
-                _connectionString = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=SpecificationEFCoreTestsDB;Integrated Security=SSPI;TrustServerCertificate=True;";
+                _connectionString = "Data Source=(localdb)\\MSSQLLocalDB;Initial Catalog=SpecificationTestsDB_EFCore;Integrated Security=SSPI;TrustServerCertificate=True;";
             }
         }
 
@@ -70,7 +70,7 @@ public class TestFactory : IAsyncLifetime
 
     private static MsSqlContainer CreateContainer() => new MsSqlBuilder()
             .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithName("SpecificationEFCoreTestsDB")
+            .WithName("SpecificationTestsDB_EFCore")
             .WithPassword("P@ssW0rd!")
             .Build();
 }
